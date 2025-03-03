@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Client</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            margin: 0;
+        }
+        h2 {
+            color: #4CAF50;
+            margin-top: 20px;
+        }
+        #messages {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: scroll;
+            background-color: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .message {
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+        }
+        .message:hover {
+            background-color: #eaeaea;
+        }
+        .message .sender {
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        #channelList {
+            margin-top: 15px;
+            padding: 0;
+        }
+        #channelList button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #channelList button:hover {
+            background-color: #45a049;
+        }
+        #searchInput {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        #messageInput {
+            width: 75%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chat Client</h1>
+    <h2>Channels</h2>
+    <input type="text" id="searchInput" placeholder="Search channels..." oninput="searchChannels()">
+    <ul id="channelList"></ul>
+    
+    <h2>Messages</h2>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button onclick="postMessage()">Send</button>
+    
+    <script>
+        const HUB_AUTHKEY = "Crr-K24d-2N";
+        const CHANNEL_AUTHKEY = "0987654321";
+        const HUB_URL = "http://vm146.rz.uni-osnabrueck.de/hub";
+        const CHANNEL_ENDPOINT = "http://vm146.rz.uni-osnabrueck.de/u066/channel.wsgi";
+        let selectedChannel = { name: "The Book Club Channel", endpoint: CHANNEL_ENDPOINT, authkey: CHANNEL_AUTHKEY };
+        let username = localStorage.getItem("username") || prompt("Enter your username:");
+        localStorage.setItem("username", username);
+        let channels = [];
+
+        function fetchChannels() {
+            fetch(`${HUB_URL}/channels`, {
+                headers: { Authorization: `authkey ${HUB_AUTHKEY}` }
+            })
+            .then(response => response.json())
+            .then(data => {
+                channels = data.channels;
+                displayChannels(channels);
+            })
+            .catch(error => console.error("Error fetching channels:", error));
+        }
+
+        function displayChannels(channelListData) {
+            const channelList = document.getElementById("channelList");
+            channelList.innerHTML = "";
+            channelListData.forEach(channel => {
+                const li = document.createElement("li");
+                const button = document.createElement("button");
+                button.textContent = channel.name;
+                button.onclick = () => fetchMessages(channel);
+                li.appendChild(button);
+                channelList.appendChild(li);
+            });
+        }
+
+        function searchChannels() {
+            const searchQuery = document.getElementById("searchInput").value.toLowerCase();
+            const filteredChannels = channels.filter(channel => channel.name.toLowerCase().includes(searchQuery));
+            displayChannels(filteredChannels);
+        }
+
+        function parseMessageContent(content) {
+            content = content.replace(/_([^_]+)_/g, "<b>$1</b>");
+            content = content.replace(/\*([^*]+)\*/g, "<i>$1</i>");
+            return content;
+        }
+
+        function fetchMessages(channel) {
+            selectedChannel = channel;
+            fetch(channel.endpoint, {
+                headers: { Authorization: `authkey ${channel.authkey}` }
+            })
+            .then(response => response.json())
+            .then(messages => {
+                const messagesDiv = document.getElementById("messages");
+                messagesDiv.innerHTML = "";
+                messages.forEach(msg => {
+                    const p = document.createElement("p");
+                    p.classList.add("message");
+                    p.innerHTML = `<span class="sender">${msg.sender}:</span> ${parseMessageContent(msg.content)}`;
+                    messagesDiv.appendChild(p);
+                });
+            })
+            .catch(error => console.error("Error fetching messages:", error));
+        }
+
+        function postMessage() {
+            if (!selectedChannel) {
+                alert("Select a channel first!");
+                return;
+            }
+            const messageInput = document.getElementById("messageInput");
+            const content = messageInput.value.trim();
+            if (!content) return;
+            const messageData = {
+                content,
+                sender: username,
+                timestamp: new Date().toISOString()
+            };
+            fetch(selectedChannel.endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `authkey ${selectedChannel.authkey}`
+                },
+                body: JSON.stringify(messageData)
+            })
+            .then(() => {
+                messageInput.value = "";
+                fetchMessages(selectedChannel);
+            })
+            .catch(error => console.error("Error posting message:", error));
+        }
+
+        fetchChannels();
+    </script>
+</body>
+</html>
