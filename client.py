@@ -6,7 +6,7 @@ import datetime
 app = Flask(__name__)
 
 HUB_AUTHKEY = 'Crr-K24d-2N'
-HUB_URL = 'http://vm322.rz.uni-osnabrueck.de/hub'
+HUB_URL = 'http://vm146.rz.uni-osnabrueck.de/hub'
 
 CHANNELS = None
 LAST_CHANNEL_UPDATE = None
