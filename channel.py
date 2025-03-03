@@ -159,4 +159,4 @@ with open(CHANNEL_FILE, 'w') as f:
         
 if __name__ == '__main__':
     profanity.load_censor_words()
-    app.run(port=5001, debug=True)
+    app.run(port=5002, debug=True)
